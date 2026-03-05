@@ -49,7 +49,7 @@
 | Anthropic API | 404 | 150ms | OK | 连通, 根路径无内容 |
 | Google Gemini | 200 | 345ms | OK | 正常 |
 | Google AI Studio | 302 | 611ms | OK | 302重定向, 正常 |
-| Copilot (Bing) | 000 | - | FAIL | 连接失败, 疑似被分流到DIRECT |
+| Copilot (Bing) | 200 | 224ms | OK | 已修复: 添加 DOMAIN-KEYWORD,copilot 前置规则 |
 | HuggingFace | 200 | 259ms | OK | 正常 |
 | Perplexity | 403 | 232ms | OK | 连通, 反爬机制 |
 | Grok (xAI) | 403 | 241ms | OK | 连通, 反爬机制 |
@@ -99,4 +99,4 @@
 
 ## 待处理
 
-- [ ] Copilot (copilot.microsoft.com) 连接失败, 需加前置规则走代理
+- [x] ~~Copilot (copilot.microsoft.com) 连接失败~~ — 已修复，添加 `DOMAIN-KEYWORD,copilot,🔰国外流量` 前置规则

@@ -539,7 +539,7 @@ curl -o /dev/null -s -w 'TTFB: %{time_starttransfer}s\n' \
 | HuggingFace | OK | |
 | Perplexity | OK | |
 | Grok (xAI) | OK | |
-| Copilot | FAIL | 需加前置规则 `DOMAIN-KEYWORD,copilot` |
+| Copilot | OK | 已添加 `DOMAIN-KEYWORD,copilot` 前置规则 |
 
 #### 2025 首次调试 (台湾-05 节点，旧内核)
 
