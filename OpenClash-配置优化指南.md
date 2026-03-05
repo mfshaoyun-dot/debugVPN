@@ -562,3 +562,58 @@ curl -o /dev/null -s -w 'TTFB: %{time_starttransfer}s\n' \
 | YouTube | 代理 | 376ms |
 
 > 优化后代理下载速度从 11.3 MB/s 提升到 15.3 MB/s，代理延迟整体下降。
+
+---
+
+## 十三、访客 WiFi 配置
+
+### 需求
+- 访客可扫码连接，走 OpenClash 代理
+- 可访问局域网打印机等共享资源
+- 双频合一（2.4G + 5G 同 SSID）
+
+### 创建命令
+
+```bash
+# 2.4G 访客接口 (ra1)
+uci set wireless.guest_2g=wifi-iface
+uci set wireless.guest_2g.device='MT7981_1_1'
+uci set wireless.guest_2g.mode='ap'
+uci set wireless.guest_2g.ssid='405-Guest'
+uci set wireless.guest_2g.encryption='psk2'
+uci set wireless.guest_2g.key='welcome405'
+uci set wireless.guest_2g.network='lan'
+uci set wireless.guest_2g.disabled='0'
+
+# 5G 访客接口 (rax1)
+uci set wireless.guest_5g=wifi-iface
+uci set wireless.guest_5g.device='MT7981_1_2'
+uci set wireless.guest_5g.mode='ap'
+uci set wireless.guest_5g.ssid='405-Guest'
+uci set wireless.guest_5g.encryption='psk2'
+uci set wireless.guest_5g.key='welcome405'
+uci set wireless.guest_5g.network='lan'
+uci set wireless.guest_5g.disabled='0'
+
+uci commit wireless
+wifi reload
+```
+
+### 关键说明
+
+| 项目 | 说明 |
+|------|------|
+| SSID | `405-Guest` |
+| 密码 | `welcome405` |
+| 加密 | WPA2-PSK（密码至少 8 位） |
+| 网络 | 桥接到 LAN（可访问打印机，流量过 OpenClash） |
+| 频段 | 2.4G + 5G 双频合一，设备自动选择 |
+
+### 访客连接二维码
+
+二维码内容格式：
+```
+WIFI:T:WPA;S:405-Guest;P:welcome405;;
+```
+
+打印用文件：`405-Guest-WiFi.docx`（A4 竖排 2×2，裁剪即用）
