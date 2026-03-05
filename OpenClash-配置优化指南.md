@@ -29,11 +29,14 @@
 | 设置项 | 位置 | 推荐值 |
 |--------|------|--------|
 | 中国 IP 绕过 | 插件设置 → 模式设置 | `china_ip_route` 开启 |
-| DNS 劫持 | 插件设置 → DNS 设置 | 防火墙转发 |
+| DNS 劫持 | 插件设置 → DNS 设置 | Dnsmasq 转发（`enable_redirect_dns=1`） |
 | IPv6 代理 | 插件设置 | 关闭（`ipv6_enable=0`） |
 | 自定义规则 | 插件设置 → 规则设置 | 开启 |
 | WAN DNS 追加 | 插件设置 → DNS 设置 | **关闭**（`append_wan_dns=0`，避免运营商 DNS 混入） |
 | AAAA 过滤 | DHCP/DNS → 高级设置 | **开启**（IPv6 已禁用，过滤无用 AAAA 记录） |
+| Dnsmasq noresolv | DHCP/DNS | **开启**（不读运营商 DNS） |
+| Fake-IP 缓存持久化 | 插件设置 | **开启**（`store_fakeip=1`，重启后不丢缓存） |
+| Dnsmasq 缓存 | 插件设置 → DNS 设置 | `8000`（由 OpenClash 管理） |
 
 ---
 
@@ -54,6 +57,7 @@
 - DOMAIN-KEYWORD,github,代理组名
 - DOMAIN-KEYWORD,oculus,代理组名
 - DOMAIN-KEYWORD,facebook,代理组名
+- DOMAIN-KEYWORD,copilot,代理组名
 
 # --- 结束 ---
 ```
@@ -61,6 +65,8 @@
 > 将 `代理组名` 替换为你的实际代理组名称（如 `TNTCloud`、`Proxy` 等）。
 >
 > `oculus` / `facebook`：Meta 系服务的部分域名 IP 被 GeoIP 误判为中国 → DIRECT，实际国内不通。前置规则兜底走代理。
+>
+> `copilot`：`copilot.microsoft.com` 被订阅规则中的微软域名匹配到 DIRECT，但国内直连不通。前置规则兜底走代理。
 
 ### 未开启 `china_ip_route` 时
 
@@ -256,8 +262,15 @@ ruby_edit "$CONFIG_FILE" "['keep-alive-interval']" "30"
 ```bash
 # 提升 TCP SYN 队列（默认 128，高并发时不够）
 sysctl -w net.ipv4.tcp_max_syn_backlog=1024
-# 持久化
+# 启用 TFO 客户端+服务端（默认仅客户端 =1）
+sysctl -w net.ipv4.tcp_fastopen=3
+# 提升连接跟踪表（默认 65536，代理场景连接数多）
+sysctl -w net.netfilter.nf_conntrack_max=131072
+
+# 持久化到 /etc/sysctl.conf
 echo 'net.ipv4.tcp_max_syn_backlog=1024' >> /etc/sysctl.conf
+echo 'net.ipv4.tcp_fastopen=3' >> /etc/sysctl.conf
+echo 'net.netfilter.nf_conntrack_max=131072' >> /etc/sysctl.conf
 ```
 
 ### Geo 数据库自动更新
@@ -265,10 +278,18 @@ echo 'net.ipv4.tcp_max_syn_backlog=1024' >> /etc/sysctl.conf
 建议统一更新时间，避免分散在不同时间段反复重启：
 
 ```bash
+# 开启自动更新
+uci set openclash.config.geo_auto_update='1'
+uci set openclash.config.geoip_auto_update='1'
+uci set openclash.config.geosite_auto_update='1'
+uci set openclash.config.geoasn_auto_update='1'
+uci set openclash.config.chnr_auto_update='1'
+
 # 统一到凌晨 5 点更新
 uci set openclash.config.geosite_update_day_time='5'
 uci set openclash.config.geoip_update_day_time='5'
 uci set openclash.config.geo_update_day_time='5'
+uci set openclash.config.chnr_update_day_time='5'
 uci commit openclash
 ```
 
@@ -325,7 +346,7 @@ cp /etc/openclash/core/clash_meta.bak /etc/openclash/core/clash_meta
 |-----------|------|------|
 | `list xxx not found in GeoSite.dat` | GeoSite 数据库缺少该分类 | 更新数据库或改用存在的标签名 |
 | `dns resolve failed: context deadline exceeded` | DNS 服务器不可达或超时 | 检查 DNS 配置，国内外分离 |
-| `fake DNS record xxx missing` | 重启后 Fake-IP 缓存丢失 | 正常现象，DNS 通了自动恢复 |
+| `fake DNS record xxx missing` | 重启后 Fake-IP 缓存丢失 | 开启 `store_fakeip=1` 持久化缓存 |
 | `tls: failed to verify certificate` | DoH 服务器证书异常 | 换掉该 DNS（如 doh.dns.sb） |
 | `operation was canceled` | 代理节点连接被取消 | 节点不稳定，换节点或检查端口 |
 | `because 自动选择 failed multiple times` | 自动选择组健康检查失败 | 手动选可用节点或缩小自动选择范围 |
@@ -334,6 +355,7 @@ cp /etc/openclash/core/clash_meta.bak /etc/openclash/core/clash_meta
 | `IPv6's DHCP Server` 警告 | LAN 侧 DHCPv6 未关闭 | 见第四节关闭 IPv6 |
 | `https://https://dns.google/...` | DNS 配置 type=udp 但 ip 填了完整 URL | 修正 type 为 https 或修正 ip 为纯地址 |
 | `graph.oculus.com i/o timeout DIRECT` | Meta 系域名 IP 被 GeoIP 误判为中国 | 添加 `DOMAIN-KEYWORD,oculus,代理组名` 前置规则 |
+| `copilot.microsoft.com` 连接失败 | 被订阅规则中的微软域名匹配到 DIRECT | 添加 `DOMAIN-KEYWORD,copilot,代理组名` 前置规则 |
 
 ---
 
@@ -391,6 +413,7 @@ cp /etc/openclash/core/clash_meta.bak /etc/openclash/core/clash_meta   # 回滚
 - [ ] 海外网站（google、youtube、facebook）显示 `using 代理组名[节点名]`
 - [ ] `github.com` 匹配 `DomainKeyword(github)` 走代理，而非 `GeoSite(microsoft)` 直连
 - [ ] `graph.oculus.com` 匹配 `DomainKeyword(oculus)` 走代理，而非 `GeoIP(cn)` 直连
+- [ ] `copilot.microsoft.com` 匹配 `DomainKeyword(copilot)` 走代理，而非微软域名直连
 - [ ] `bing.com`、`outlook.com`、`onedrive.com` 走代理（非直连）
 - [ ] 无大量 `1.1.1.1:53 operation was canceled` 报错
 - [ ] 国内网站（baidu、qq、taobao）显示 `using DIRECT`
@@ -481,9 +504,46 @@ curl -o /dev/null -s -w 'TTFB: %{time_starttransfer}s\n' \
   'https://www.google.com' --max-time 10
 ```
 
-### 实测基准（台湾-05 节点）
+### 实测基准
 
-#### 下载速度
+#### 2026-03-05 (优化后，v1.19.20，出口 103.220.218.92 台北)
+
+**下载速度**
+
+| 目标 | 路径 | 速度 |
+|------|------|------|
+| 阿里云镜像 | DIRECT | 1.67 MB/s |
+| Cloudflare 10MB | 代理 | **15.3 MB/s** |
+
+**首字节延迟 (TTFB)**
+
+| 目标 | 路径 | 延迟 |
+|------|------|------|
+| 淘宝 | DIRECT | 80ms |
+| 百度 | DIRECT | 107ms |
+| Anthropic API | 代理 | 150ms |
+| Claude | 代理 | 184ms |
+| ChatGPT | 代理 | 241ms |
+| HuggingFace | 代理 | 259ms |
+| YouTube | 代理 | 286ms |
+| Google | 代理 | 303ms |
+| Google Gemini | 代理 | 345ms |
+
+**AI 服务连通性**
+
+| 服务 | 状态 | 说明 |
+|------|------|------|
+| ChatGPT / OpenAI API | OK | |
+| Claude / Anthropic API | OK | |
+| Google Gemini / AI Studio | OK | |
+| HuggingFace | OK | |
+| Perplexity | OK | |
+| Grok (xAI) | OK | |
+| Copilot | FAIL | 需加前置规则 `DOMAIN-KEYWORD,copilot` |
+
+#### 2025 首次调试 (台湾-05 节点，旧内核)
+
+**下载速度**
 
 | 目标 | 路径 | 速度 |
 |------|------|------|
@@ -491,7 +551,7 @@ curl -o /dev/null -s -w 'TTFB: %{time_starttransfer}s\n' \
 | 华为云镜像 | DIRECT | 0.89 MB/s |
 | Cloudflare 10MB | 代理 | **11.3 MB/s** |
 
-#### 首字节延迟 (TTFB)
+**首字节延迟 (TTFB)**
 
 | 目标 | 路径 | 延迟 |
 |------|------|------|
@@ -501,4 +561,4 @@ curl -o /dev/null -s -w 'TTFB: %{time_starttransfer}s\n' \
 | Cloudflare | 代理 | 313ms |
 | YouTube | 代理 | 376ms |
 
-> 代理延迟 260-380ms 经台湾中转属正常范围。国内直连 <30ms 正常。
+> 优化后代理下载速度从 11.3 MB/s 提升到 15.3 MB/s，代理延迟整体下降。
