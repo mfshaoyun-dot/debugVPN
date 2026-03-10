@@ -29,7 +29,7 @@
 AI流量 代理组覆盖的域名规则（`/etc/openclash/custom/openclash_custom_rules.list`）：
 
 ```
-anthropic.com / claude.ai / openai.com / chatgpt.com
+anthropic.com / claude.ai / platform.claude.com / openai.com / chatgpt.com
 oaistatic.com / oaiusercontent.com
 generativelanguage.googleapis.com / gemini.google.com / aistudio.google.com
 perplexity.ai / huggingface.co
@@ -104,6 +104,7 @@ puts "注入完成: #{(c['proxies']||[]).length} 个节点, #{(c['proxy-groups']
 ```
 - DOMAIN-SUFFIX,anthropic.com,AI流量
 - DOMAIN-SUFFIX,claude.ai,AI流量
+- DOMAIN-SUFFIX,platform.claude.com,AI流量
 - DOMAIN-SUFFIX,openai.com,AI流量
 - DOMAIN-SUFFIX,chatgpt.com,AI流量
 - DOMAIN-SUFFIX,oaistatic.com,AI流量
