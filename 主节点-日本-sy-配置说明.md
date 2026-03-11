@@ -214,11 +214,54 @@ ssh root@192.168.2.1 "curl -s 'http://127.0.0.1:9090/connections' -H 'Authorizat
 
 ---
 
+## 确认当前 WiFi 环境
+
+```bash
+# 查看默认网关 IP，即当前路由器地址
+ip route | grep default
+# 或
+route -n | grep "^0.0.0.0"
+```
+
+| 网关 IP | 环境 | Clash API Secret |
+|---------|------|-----------------|
+| `192.168.5.1` | 工作室 | `BeteqZ3V` |
+| `192.168.2.1` | 另一个 WiFi | `Oe4sHjG1` |
+
+Windows 下也可用：
+
+```cmd
+ipconfig | findstr "默认网关"
+```
+
+---
+
+## 节点出口 IP 与网络拓扑（2026-03-11 实测）
+
+### 工作室（192.168.5.1）
+
+| 节点 | 服务器 | 出口 IP | 归属 | 拓扑 |
+|------|--------|---------|------|------|
+| 主节点-日本-sy | `cdn.magicfind.vc` | `167.179.67.171` | 日本东京，Vultr | **直连**：入口 = 出口，无中转 |
+| TNTCloud 日本-04 | `aaawkhx74fh7sss.aaanodes.com` | `154.64.226.179` | 台湾 | **中转架构**：台湾入口 → 落地各地区 |
+
+> TNTCloud 所有节点（日本/台湾/新加坡等）均使用同一域名 `aaawkhx74fh7sss.aaanodes.com`，通过端口区分地区。出口 IP 显示台湾是正常的——那是前置中转 IP，流量在台湾中转后再转发到目标地区。
+
+> 主节点-日本-sy 出口 IP 即日本 Vultr 服务器本身，没有中转层。
+
+### 另一个 WiFi 环境（192.168.2.1）
+
+该环境尚未测试出口 IP，Clash API Secret 为 `Oe4sHjG1`。
+
+---
+
 ## Clash API 参考
 
-| 操作 | 命令 |
+> Bearer Token 因网络环境不同而不同，确认方法见上方「确认当前 WiFi 环境」章节。
+
+| 操作 | 命令（工作室用 BeteqZ3V） |
 |------|------|
-| 查看 AI流量 当前节点 | `curl -s 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -H 'Authorization: Bearer Oe4sHjG1'` |
-| 切换到主节点 | `curl -X PUT 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -d '{"name":"主节点-日本-sy"}'` |
-| 切换到 TNTCloud | `curl -X PUT 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -d '{"name":"TNTCloud"}'` |
-| 测节点延迟 | `curl -s 'http://127.0.0.1:9090/proxies/%E4%B8%BB%E8%8A%82%E7%82%B9-%E6%97%A5%E6%9C%AC-sy/delay?timeout=5000&url=http://www.gstatic.com/generate_204'` |
+| 查看 AI流量 当前节点 | `curl -s 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -H 'Authorization: Bearer BeteqZ3V'` |
+| 切换到主节点 | `curl -X PUT 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -H 'Authorization: Bearer BeteqZ3V' -H 'Content-Type: application/json' -d '{"name":"主节点-日本-sy"}'` |
+| 切换到 TNTCloud | `curl -X PUT 'http://127.0.0.1:9090/proxies/AI%E6%B5%81%E9%87%8F' -H 'Authorization: Bearer BeteqZ3V' -H 'Content-Type: application/json' -d '{"name":"TNTCloud"}'` |
+| 测节点延迟 | `curl -s 'http://127.0.0.1:9090/proxies/%E4%B8%BB%E8%8A%82%E7%82%B9-%E6%97%A5%E6%9C%AC-sy/delay?timeout=5000&url=http://www.gstatic.com/generate_204' -H 'Authorization: Bearer BeteqZ3V'` |
